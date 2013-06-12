@@ -54,42 +54,73 @@ module.exports = (function () {
       transformHandlers;
   
     transformHandlers = {
-      ThrowStatement: function (ast) {
-        var copyAST = deepCopy(ast);
+      ThrowStatement: function (ast, error) {
+        var copyAST = deepCopy(ast), astErr;
         if (!isMinErr(ast.argument)) {
           logger.error('Throwing an error that is not a MinErr instance');
         }
-        copyAST.argument = transform(ast.argument);
-        return copyAST;
+        astErr = transform(ast.argument, error);
+        copyAST.argument = astErr.ast;
+        return {
+          ast: copyAST,
+          error: astErr.error
+        };
       },
-      CallExpression: function (ast) {
+      CallExpression: function (ast, error) {
         // If this is a MinErr instance, delete the template string.
-        var copyAST = deepCopy(ast);
+        var copyAST = deepCopy(ast), _error = deepCopy(error);
         if (isMinErr(ast)) {
           copyAST.arguments = [].concat(ast.arguments[0], ast.arguments.slice(2));
+          _error[ast.arguments[0].value] = ast.arguments[1].value;
         }
-        return copyAST;
+        return {
+          ast: copyAST,
+          error: _error
+        };
       },
     };
   
-    transform = function (ast) {
-      var copyAST = deepCopy(ast);
+    transform = function (ast, error) {
+      var copyAST = deepCopy(ast),
+        astErr,
+        astReduce,
+        _error = error;
+
       if (transformHandlers[ast.type]) {
-        return transformHandlers[ast.type](ast);
+        return transformHandlers[ast.type](ast, error);
       }
+
+      astReduce = function (iAstErr, ast) {
+        var nextAstErr = transform(ast, iAstErr.error),
+          nextAsts = iAstErr.ast.concat(nextAstErr.ast);
+        return {
+          ast: nextAsts,
+          error: nextAstErr.error
+        };
+      };
+
       for (var key in ast) {
         if (isAST(ast[key])) {
-          copyAST[key] = transform(ast[key]);
+          astErr = transform(ast[key], error);
+          copyAST[key] = astErr.ast;
+          _error = astErr.error;
         }
         if (isASTArray(ast[key])) {
-          copyAST[key] = ast[key].map(transform);
+          astErr = ast[key].reduce(astReduce, { ast: [], error: _error });
+          copyAST[key] = astErr.ast;
+          _error = astErr.error;
         }
       }
-      return copyAST;
+      return {
+        ast: copyAST,
+        error: _error
+      };
     };
   
     return {
-      transform: transform,
+      transform: function (ast) {
+        return transform(ast, {});
+      },
       isMinErr: isMinErr
     };
   };
