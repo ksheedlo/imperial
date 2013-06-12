@@ -51,7 +51,7 @@ module.exports = (function () {
       // If this is a MinErr instance, delete the template string.
       var copyAST = deepCopy(ast);
       if (isMinErr(ast)) {
-        copyAST.arguments = Array.prototype.concat([], ast.arguments[0], ast.arguments.slice(2));
+        copyAST.arguments = [].concat(ast.arguments[0], ast.arguments.slice(2));
       }
       return copyAST;
     },
