@@ -1,5 +1,7 @@
 'use strict';
 
+/*global toString*/
+
 module.exports = (function () {
   var deepCopy, isASTArray, isAST, isMinErr, transform, transformHandlers;
 
@@ -8,11 +10,11 @@ module.exports = (function () {
   };
 
   isAST = function (obj) {
-    return typeof(obj) === 'object' && obj['type'] !== undefined;
+    return typeof(obj) === 'object' && obj.type !== undefined;
   };
 
   isASTArray = function (value) {
-    if (toString.apply(value) == '[object Array]') {
+    if (toString.apply(value) === '[object Array]') {
       return value.every(isAST);
     }
     return false;
@@ -56,16 +58,16 @@ module.exports = (function () {
   };
 
   transform = function (ast) {
-    var copyAST = deepCopy(ast), blockStatements;
+    var copyAST = deepCopy(ast);
     if (transformHandlers[ast.type]) {
       return transformHandlers[ast.type](ast);
     }
-    for (key in ast) {
+    for (var key in ast) {
       if (isAST(ast[key])) {
         copyAST[key] = transform(ast[key]);
       }
       if (isASTArray(ast[key])) {
-        copyAST[key] = ast[key].map(transform);  
+        copyAST[key] = ast[key].map(transform);
       }
     }
     return copyAST;

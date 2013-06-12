@@ -1,5 +1,7 @@
 'use strict';
 
+/*global describe, it, expect*/
+
 var minerr = require('../minerrparse.js');
 
 describe('The MinErr transformer', function () {
