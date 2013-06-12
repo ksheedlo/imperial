@@ -3,14 +3,24 @@
 /*global toString*/
 
 module.exports = (function () {
-  var deepCopy, isASTArray, isAST, isMinErr, transform, transformHandlers;
+  var deepCopy,
+    defaultLogger,
+    isASTArray,
+    isAST,
+    isMinErr;
+
+  defaultLogger = function () {
+    return {
+      error: console.error
+    };
+  };
 
   deepCopy = function (obj) {
     return JSON.parse(JSON.stringify(obj));
   };
 
   isAST = function (obj) {
-    return typeof(obj) === 'object' && obj.type !== undefined;
+    return obj && typeof(obj) === 'object' && obj.type !== undefined;
   };
 
   isASTArray = function (value) {
@@ -19,7 +29,7 @@ module.exports = (function () {
     }
     return false;
   };
-
+  
   isMinErr = function (ast) {
     // MinErr instance must be a call expression.
     // throw minErr([module])(code, template, ...)
@@ -37,41 +47,50 @@ module.exports = (function () {
     }
     return false;
   };
-
-  transformHandlers = {
-    ThrowStatement: function (ast) {
+  
+  return function (props) {
+    var logger = props.logger || defaultLogger(),
+      transform,
+      transformHandlers;
+  
+    transformHandlers = {
+      ThrowStatement: function (ast) {
+        var copyAST = deepCopy(ast);
+        if (!isMinErr(ast.argument)) {
+          logger.error('Throwing an error that is not a MinErr instance');
+        }
+        copyAST.argument = transform(ast.argument);
+        return copyAST;
+      },
+      CallExpression: function (ast) {
+        // If this is a MinErr instance, delete the template string.
+        var copyAST = deepCopy(ast);
+        if (isMinErr(ast)) {
+          copyAST.arguments = [].concat(ast.arguments[0], ast.arguments.slice(2));
+        }
+        return copyAST;
+      },
+    };
+  
+    transform = function (ast) {
       var copyAST = deepCopy(ast);
-      if (!isMinErr(ast.argument)) {
-        console.log('[WARN] Throwing an error that is not a MinErr instance');
+      if (transformHandlers[ast.type]) {
+        return transformHandlers[ast.type](ast);
       }
-      copyAST.argument = transform(ast.argument);
+      for (var key in ast) {
+        if (isAST(ast[key])) {
+          copyAST[key] = transform(ast[key]);
+        }
+        if (isASTArray(ast[key])) {
+          copyAST[key] = ast[key].map(transform);
+        }
+      }
       return copyAST;
-    },
-    CallExpression: function (ast) {
-      // If this is a MinErr instance, delete the template string.
-      var copyAST = deepCopy(ast);
-      if (isMinErr(ast)) {
-        copyAST.arguments = [].concat(ast.arguments[0], ast.arguments.slice(2));
-      }
-      return copyAST;
-    },
+    };
+  
+    return {
+      transform: transform,
+      isMinErr: isMinErr
+    };
   };
-
-  transform = function (ast) {
-    var copyAST = deepCopy(ast);
-    if (transformHandlers[ast.type]) {
-      return transformHandlers[ast.type](ast);
-    }
-    for (var key in ast) {
-      if (isAST(ast[key])) {
-        copyAST[key] = transform(ast[key]);
-      }
-      if (isASTArray(ast[key])) {
-        copyAST[key] = ast[key].map(transform);
-      }
-    }
-    return copyAST;
-  };
-
-  return transform;
 })();

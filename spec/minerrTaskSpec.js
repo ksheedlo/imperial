@@ -1,10 +1,31 @@
 'use strict';
 
-/*global describe, it, expect*/
+/*global beforeEach, describe, expect, it, jasmine*/
 
+var esprima = require('esprima');
 var minerr = require('../minerrparse.js');
 
-describe('The MinErr transformer', function () {
+describe('The MinErr parser', function () {
+
+  var parser, loggerMock;
+
+  beforeEach(function () {
+    loggerMock = {
+      error: jasmine.createSpy()
+    };
+    parser = minerr({ logger: loggerMock });
+
+    this.addMatchers({
+      toTransformTo: function (expected) {
+        var actualAST = parser.transform(esprima.parse('(' + this.actual.toString() + ')')),
+          expectedAST = esprima.parse('(' + expected.toString() + ')');
+        return JSON.stringify(actualAST) === JSON.stringify(expectedAST);
+      },
+      toExtract: function () {
+        return false;
+      }
+    });
+  });
   
   it('should strip error messages from calls to MinErr instances', function () {
     var ast = {
@@ -45,7 +66,7 @@ describe('The MinErr transformer', function () {
         }
       ]
     };
-    expect(minerr(ast)).toEqual(expected);
+    expect(parser.transform(ast)).toEqual(expected);
   });
 
   it('should strip error messages from curried calls to minErr', function () {
@@ -93,6 +114,14 @@ describe('The MinErr transformer', function () {
         }
       ]
     };
-    expect(minerr(ast)).toEqual(expected);
+    expect(parser.transform(ast)).toEqual(expected);
+  });
+
+  it('should remove the descriptive name', function () {
+    expect(function(testMinErr, test) {
+      testMinErr('test1', 'This is a {0}', test);
+    }).toTransformTo(function (testMinErr, test) {
+      testMinErr('test1', test);
+    });
   });
 });
