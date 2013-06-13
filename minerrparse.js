@@ -7,7 +7,8 @@ module.exports = (function () {
     defaultLogger,
     isASTArray,
     isAST,
-    isMinErr;
+    isMinErrCall,
+    isMinErrInstance;
 
   defaultLogger = function () {
     return {
@@ -29,8 +30,23 @@ module.exports = (function () {
     }
     return false;
   };
+
+  isMinErrCall = function (ast) {
+    // Returns true if the AST represents a call to 'minErr', false otherwise.
+    // Code example:
+    //
+    //    minErr('test'); // isMinErrCall() returns true
+    //
+    if (ast.type !== 'CallExpression') {
+      return false;
+    }
+    if (ast.callee.type === 'Identifier' && ast.callee.name === 'minErr') {
+      return true;
+    }
+    return false;
+  };
   
-  isMinErr = function (ast) {
+  isMinErrInstance = function (ast) {
     // MinErr instance must be a call expression.
     // throw minErr([module])(code, template, ...)
     // throw moduleMinErr(code, template, ...)
@@ -40,10 +56,8 @@ module.exports = (function () {
     if (ast.callee.type === 'Identifier' && ast.callee.name.match(/^.+MinErr$/)) {
       return true;
     }
-    if (ast.callee.type === 'CallExpression') {
-      if (ast.callee.callee.type === 'Identifier' && ast.callee.callee.name === 'minErr') {
-        return true;
-      }
+    if (isMinErrCall(ast.callee)) {
+      return true;
     }
     return false;
   };
@@ -56,7 +70,7 @@ module.exports = (function () {
     transformHandlers = {
       ThrowStatement: function (ast, error) {
         var copyAST = deepCopy(ast), astErr;
-        if (!isMinErr(ast.argument)) {
+        if (!isMinErrInstance(ast.argument)) {
           logger.error('Throwing an error that is not a MinErr instance');
         }
         astErr = transform(ast.argument, error);
@@ -69,7 +83,7 @@ module.exports = (function () {
       CallExpression: function (ast, error) {
         // If this is a MinErr instance, delete the template string.
         var copyAST = deepCopy(ast), _error = deepCopy(error);
-        if (isMinErr(ast)) {
+        if (isMinErrInstance(ast)) {
           copyAST.arguments = [].concat(ast.arguments[0], ast.arguments.slice(2));
           _error[ast.arguments[0].value] = ast.arguments[1].value;
         }
@@ -121,7 +135,7 @@ module.exports = (function () {
       transform: function (ast) {
         return transform(ast, {});
       },
-      isMinErr: isMinErr
+      isMinErrInstance: isMinErrInstance
     };
   };
 })();
