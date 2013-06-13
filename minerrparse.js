@@ -55,15 +55,18 @@ module.exports = function (props) {
 
   transformHandlers = {
     ThrowStatement: function (ast, error) {
-      var copyAST = deepCopy(ast), astErr;
-      if (!isMinErrInstance(ast.argument)) {
+      var copyAST = deepCopy(ast), astErr, resultError;
+      if (isMinErrInstance(ast.argument)) {
+        astErr = transform(ast.argument, error);
+        copyAST.argument = astErr.ast;
+        resultError = astErr.error;
+      } else {
         logger.error('Throwing an error that is not a MinErr instance');
+        resultError = error;
       }
-      astErr = transform(ast.argument, error);
-      copyAST.argument = astErr.ast;
       return {
         ast: copyAST,
-        error: astErr.error
+        error: resultError
       };
     },
     CallExpression: function (ast, error) {

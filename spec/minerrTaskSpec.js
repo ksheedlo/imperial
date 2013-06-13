@@ -150,6 +150,14 @@ describe('The MinErr parser', function () {
     expect(logger.error).toHaveBeenCalledWith('Throwing an error that is not a MinErr instance');
   });
 
+  it('should not transform non-minErr errors', function () {
+    expect(function (testMinErr, test) {
+      throw new Error(testMinErr('test1', 'This is a {0}', test));
+    }).toTransformTo(function (testMinErr, test) {
+      throw new Error(testMinErr('test1', 'This is a {0}', test));
+    });
+  });
+
   it('should not modify functions that don\'t use MinErr', function () {
     expect(function (foo, baz) {
       for (var i = 0; i < baz; i++) {
