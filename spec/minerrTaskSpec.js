@@ -7,7 +7,7 @@ var minerr = require('../minerrparse.js');
 
 describe('The MinErr parser', function () {
 
-  var parser, logger, toAST;
+  var parse, logger, toAST;
 
   toAST = function (code) {
     // Converts a function into an AST using Esprima.
@@ -16,16 +16,16 @@ describe('The MinErr parser', function () {
 
   beforeEach(function () {
     logger = jasmine.createSpyObj('logger', ['error']);
-    parser = minerr({ logger: logger });
+    parse = minerr({ logger: logger });
 
     this.addMatchers({
       toTransformTo: function (expected) {
-        var actualAST = parser.transform(toAST(this.actual)).ast,
+        var actualAST = parse(toAST(this.actual)).ast,
           expectedAST = toAST(expected);
         return JSON.stringify(actualAST) === JSON.stringify(expectedAST);
       },
       toExtract: function (expected) {
-        var actualErr = parser.transform(toAST(this.actual)).error;
+        var actualErr = parse(toAST(this.actual)).error;
         return JSON.stringify(actualErr) === JSON.stringify(expected);
       }
     });
@@ -70,7 +70,7 @@ describe('The MinErr parser', function () {
         }
       ]
     };
-    expect(parser.transform(ast).ast).toEqual(expected);
+    expect(parse(ast).ast).toEqual(expected);
   });
 
   it('should strip error messages from curried calls to minErr', function () {
@@ -118,7 +118,7 @@ describe('The MinErr parser', function () {
         }
       ]
     };
-    expect(parser.transform(ast).ast).toEqual(expected);
+    expect(parse(ast).ast).toEqual(expected);
   });
 
   it('should remove the descriptive name', function () {
@@ -146,7 +146,7 @@ describe('The MinErr parser', function () {
     var ast = toAST(function () {
         throw new Error('Oops!');
       });
-    parser.transform(ast);
+    parse(ast);
     expect(logger.error).toHaveBeenCalledWith('Throwing an error that is not a MinErr instance');
   });
 
