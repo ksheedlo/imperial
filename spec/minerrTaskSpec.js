@@ -25,7 +25,7 @@ describe('The MinErr parser', function () {
         return JSON.stringify(actualAST) === JSON.stringify(expectedAST);
       },
       toExtract: function (expected) {
-        var actualErr = parse(toAST(this.actual)).error;
+        var actualErr = parse(toAST(this.actual)).extractedErrors;
         return JSON.stringify(actualErr) === JSON.stringify(expected);
       }
     });
