@@ -9,9 +9,9 @@ describe('The MinErr parser', function () {
 
   var parse, logger, toAST;
 
-  toAST = function (code) {
+  toAST = function (code, options) {
     // Converts a function into an AST using Esprima.
-    return esprima.parse('(' + code.toString() + ')');
+    return esprima.parse('(' + code.toString() + ')', options || {});
   };
 
   beforeEach(function () {
@@ -147,7 +147,18 @@ describe('The MinErr parser', function () {
         throw new Error('Oops!');
       });
     parse(ast);
-    expect(logger.error).toHaveBeenCalledWith('Throwing an error that is not a MinErr instance');
+    expect(logger.error).toHaveBeenCalledWith('Error is not a minErr instance');
+  });
+
+  it('should warn with a filename and syntax location when available', function () {
+    var ast = toAST(function () {
+        throw new Error('Oops!');
+      }, {loc: true});
+    parse(ast, 'test1.js');
+    expect(logger.error.calls.length).toEqual(1);
+    expect(logger.error.mostRecentCall.args[0]).toMatch(
+      /test1\.js:\d+:\d+: Error is not a minErr instance/
+      );
   });
 
   it('should not transform non-minErr errors', function () {

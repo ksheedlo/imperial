@@ -48,8 +48,22 @@ function isMinErrInstance(ast) {
   return false;
 }
 
+function makeLogMessage(filename, loc, message) {
+  if (loc && filename) {
+    return filename + ':' + loc.start.line + ':' + loc.start.column + ': ' + message;
+  }
+  if (loc) {
+    return loc.start.line + ':' + loc.start.column + ': ' + message;
+  }
+  if (filename) {
+    return filename + ': ' + message;
+  }
+  return message;
+}
+
 module.exports = function (props) {
-  var logger = props.logger || { error: console.error },
+  var filename = '',
+    logger = props.logger || { error: console.error },
     transform,
     transformHandlers;
 
@@ -61,7 +75,7 @@ module.exports = function (props) {
         copyAST.argument = astErr.ast;
         changedErrors = astErr.extractedErrors;
       } else {
-        logger.error('Throwing an error that is not a MinErr instance');
+        logger.error(makeLogMessage(filename, ast.loc, 'Error is not a minErr instance'));
         changedErrors = extractedErrors;
       }
       return {
@@ -120,7 +134,11 @@ module.exports = function (props) {
     };
   };
 
-  return function (ast) {
-    return transform(ast, {});
+  return function (ast, file) {
+    var result;
+    filename = file || '';
+    result = transform(ast, {});
+    filename = '';
+    return result;
   };
 };
