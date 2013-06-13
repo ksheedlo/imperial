@@ -69,75 +69,52 @@ module.exports = function (props) {
 
   transformHandlers = {
     ThrowStatement: function (ast, extractedErrors) {
-      var copyAST = deepCopy(ast), astErr, changedErrors;
+      var copyAST = deepCopy(ast);
       if (isMinErrInstance(ast.argument)) {
-        astErr = transform(ast.argument, extractedErrors);
-        copyAST.argument = astErr.ast;
-        changedErrors = astErr.extractedErrors;
+        copyAST.argument = transform(ast.argument, extractedErrors);
       } else {
         logger.error(makeLogMessage(filename, ast.loc, 'Error is not a minErr instance'));
-        changedErrors = extractedErrors;
       }
-      return {
-        ast: copyAST,
-        extractedErrors: changedErrors
-      };
+      return copyAST;
     },
     CallExpression: function (ast, extractedErrors) {
       // If this is a MinErr instance, delete the template string.
-      var copyAST = deepCopy(ast), changedErrors = deepCopy(extractedErrors);
+      var copyAST = deepCopy(ast);
       if (isMinErrInstance(ast)) {
         copyAST.arguments = [].concat(ast.arguments[0], ast.arguments.slice(2));
-        changedErrors[ast.arguments[0].value] = ast.arguments[1].value;
+        extractedErrors[ast.arguments[0].value] = ast.arguments[1].value;
       }
-      return {
-        ast: copyAST,
-        extractedErrors: changedErrors
-      };
+      return copyAST;
     },
   };
 
   transform = function (ast, extractedErrors) {
-    var copyAST = deepCopy(ast),
-      astErr,
-      astReduce,
-      changedErrors = extractedErrors;
+    var copyAST = deepCopy(ast), astReduce;
 
     if (transformHandlers[ast.type]) {
       return transformHandlers[ast.type](ast, extractedErrors);
     }
 
-    astReduce = function (iAstErr, ast) {
-      var nextAstErr = transform(ast, iAstErr.extractedErrors),
-        nextAsts = iAstErr.ast.concat(nextAstErr.ast);
-      return {
-        ast: nextAsts,
-        extractedErrors: nextAstErr.extractedErrors
-      };
+    astReduce = function (iAstArray, ast) {
+      var nextAst = transform(ast, extractedErrors);
+      return iAstArray.concat(nextAst);
     };
 
     for (var property in ast) {
       if (isAST(ast[property])) {
-        astErr = transform(ast[property], extractedErrors);
-        copyAST[property] = astErr.ast;
-        changedErrors = astErr.extractedErrors;
+        copyAST[property] = transform(ast[property], extractedErrors);
       }
       if (isASTArray(ast[property])) {
-        astErr = ast[property].reduce(astReduce, { ast: [], extractedErrors: changedErrors });
-        copyAST[property] = astErr.ast;
-        changedErrors = astErr.extractedErrors;
+        copyAST[property] = ast[property].reduce(astReduce, []);
       }
     }
-    return {
-      ast: copyAST,
-      extractedErrors: changedErrors
-    };
+    return copyAST;
   };
 
-  return function (ast, file) {
+  return function (ast, errors, file) {
     var result;
     filename = file || '';
-    result = transform(ast, {});
+    result = transform(ast, errors);
     filename = '';
     return result;
   };

@@ -20,13 +20,14 @@ describe('The MinErr parser', function () {
 
     this.addMatchers({
       toTransformTo: function (expected) {
-        var actualAST = parse(toAST(this.actual)).ast,
+        var actualAST = parse(toAST(this.actual), {}),
           expectedAST = toAST(expected);
         return JSON.stringify(actualAST) === JSON.stringify(expectedAST);
       },
       toExtract: function (expected) {
-        var actualErr = parse(toAST(this.actual)).extractedErrors;
-        return JSON.stringify(actualErr) === JSON.stringify(expected);
+        var extractedErrors = {};
+        parse(toAST(this.actual), extractedErrors);
+        return JSON.stringify(extractedErrors) === JSON.stringify(expected);
       }
     });
   });
@@ -70,7 +71,7 @@ describe('The MinErr parser', function () {
         }
       ]
     };
-    expect(parse(ast).ast).toEqual(expected);
+    expect(parse(ast, {})).toEqual(expected);
   });
 
   it('should strip error messages from curried calls to minErr', function () {
@@ -118,7 +119,7 @@ describe('The MinErr parser', function () {
         }
       ]
     };
-    expect(parse(ast).ast).toEqual(expected);
+    expect(parse(ast, {})).toEqual(expected);
   });
 
   it('should remove the descriptive name', function () {
@@ -146,7 +147,7 @@ describe('The MinErr parser', function () {
     var ast = toAST(function () {
         throw new Error('Oops!');
       });
-    parse(ast);
+    parse(ast, {});
     expect(logger.error).toHaveBeenCalledWith('Error is not a minErr instance');
   });
 
@@ -154,7 +155,7 @@ describe('The MinErr parser', function () {
     var ast = toAST(function () {
         throw new Error('Oops!');
       }, {loc: true});
-    parse(ast, 'test1.js');
+    parse(ast, {}, 'test1.js');
     expect(logger.error.calls.length).toEqual(1);
     expect(logger.error.mostRecentCall.args[0]).toMatch(
       /test1\.js:\d+:\d+: Error is not a minErr instance/
@@ -183,7 +184,7 @@ describe('The MinErr parser', function () {
     });
   });
 
-  it('should not modify functions that use MinErr but do not call it', function () {
+  it('should not modify functions that use MinErr instances but do not call them', function () {
     expect(function () {
       var fooMinErr = minErr('foo');
       return fooMinErr;
