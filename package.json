@@ -6,7 +6,10 @@
     "url": "https://github.com/ksheedlo/imperial.git"
   },
   "dependencies": {
-    "esprima": "~1.0.3"
+    "esprima": "~1.0.3",
+    "optimist": "~0.5.2",
+    "q": "~0.9.6",
+    "escodegen": "0.0.23"
   },
   "devDependencies": {
     "grunt": "~0.4.1",

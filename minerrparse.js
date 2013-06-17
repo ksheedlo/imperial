@@ -63,9 +63,13 @@ function makeLogMessage(filename, loc, message) {
 
 module.exports = function (props) {
   var filename = '',
-    logger = props.logger || { error: console.error },
+    logger,
     transform,
     transformHandlers;
+
+  if (props) {
+    logger = props.logger || { error: console.error };
+  }
 
   transformHandlers = {
     ThrowStatement: function (ast, extractedErrors) {
@@ -89,11 +93,12 @@ module.exports = function (props) {
   };
 
   transform = function (ast, extractedErrors) {
-    var copyAST = deepCopy(ast), astReduce;
+    var copyAST, astReduce;
 
     if (transformHandlers[ast.type]) {
       return transformHandlers[ast.type](ast, extractedErrors);
     }
+    copyAST = deepCopy(ast);
 
     astReduce = function (iAstArray, ast) {
       var nextAst = transform(ast, extractedErrors);
@@ -111,9 +116,9 @@ module.exports = function (props) {
     return copyAST;
   };
 
-  return function (ast, errors, file) {
+  return function (ast, errors, sourceFilename) {
     var result;
-    filename = file || '';
+    filename = sourceFilename || '';
     result = transform(ast, errors);
     filename = '';
     return result;
