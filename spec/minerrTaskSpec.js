@@ -7,26 +7,27 @@ var minerr = require('../minerrparse.js');
 
 describe('The MinErr parser', function () {
 
-  var parser, logger, toAST;
+  var parse, logger, toAST;
 
-  toAST = function (code) {
+  toAST = function (code, options) {
     // Converts a function into an AST using Esprima.
-    return esprima.parse('(' + code.toString() + ')');
+    return esprima.parse('(' + code.toString() + ')', options || {});
   };
 
   beforeEach(function () {
     logger = jasmine.createSpyObj('logger', ['error']);
-    parser = minerr({ logger: logger });
+    parse = minerr({ logger: logger });
 
     this.addMatchers({
       toTransformTo: function (expected) {
-        var actualAST = parser.transform(toAST(this.actual)).ast,
+        var actualAST = parse(toAST(this.actual), {}),
           expectedAST = toAST(expected);
         return JSON.stringify(actualAST) === JSON.stringify(expectedAST);
       },
       toExtract: function (expected) {
-        var actualErr = parser.transform(toAST(this.actual)).error;
-        return JSON.stringify(actualErr) === JSON.stringify(expected);
+        var extractedErrors = {};
+        parse(toAST(this.actual), extractedErrors);
+        return JSON.stringify(extractedErrors) === JSON.stringify(expected);
       }
     });
   });
@@ -70,7 +71,7 @@ describe('The MinErr parser', function () {
         }
       ]
     };
-    expect(parser.transform(ast).ast).toEqual(expected);
+    expect(parse(ast, {})).toEqual(expected);
   });
 
   it('should strip error messages from curried calls to minErr', function () {
@@ -118,7 +119,7 @@ describe('The MinErr parser', function () {
         }
       ]
     };
-    expect(parser.transform(ast).ast).toEqual(expected);
+    expect(parse(ast, {})).toEqual(expected);
   });
 
   it('should remove the descriptive name', function () {
@@ -146,8 +147,27 @@ describe('The MinErr parser', function () {
     var ast = toAST(function () {
         throw new Error('Oops!');
       });
-    parser.transform(ast);
-    expect(logger.error).toHaveBeenCalledWith('Throwing an error that is not a MinErr instance');
+    parse(ast, {});
+    expect(logger.error).toHaveBeenCalledWith('Error is not a minErr instance');
+  });
+
+  it('should warn with a filename and syntax location when available', function () {
+    var ast = toAST(function () {
+        throw new Error('Oops!');
+      }, {loc: true});
+    parse(ast, {}, 'test1.js');
+    expect(logger.error.calls.length).toEqual(1);
+    expect(logger.error.mostRecentCall.args[0]).toMatch(
+      /test1\.js:\d+:\d+: Error is not a minErr instance/
+      );
+  });
+
+  it('should not transform non-minErr errors', function () {
+    expect(function (testMinErr, test) {
+      throw new Error(testMinErr('test1', 'This is a {0}', test));
+    }).toTransformTo(function (testMinErr, test) {
+      throw new Error(testMinErr('test1', 'This is a {0}', test));
+    });
   });
 
   it('should not modify functions that don\'t use MinErr', function () {
@@ -164,7 +184,7 @@ describe('The MinErr parser', function () {
     });
   });
 
-  it('should not modify functions that use MinErr but do not call it', function () {
+  it('should not modify functions that use MinErr instances but do not call them', function () {
     expect(function () {
       var fooMinErr = minErr('foo');
       return fooMinErr;
