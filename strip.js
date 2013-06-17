@@ -22,15 +22,17 @@ function stripFile(filename, output, extractedErrors) {
                   }
                 }
               });
-            console.log(resultSource);
             return Q.nfcall(fs.writeFile, output, resultSource);
           });
 }
 
-var extractedErrors = {};
 
-stripFile('demo/test1.js', 'demo/test1.strip.js', extractedErrors)
-.then(function () {
-  console.log(extractedErrors);
-})
-.done();
+argv._.forEach(function (file) {
+  var extractedErrors = {},
+    stripFilename = path.dirname(file) + path.sep + path.basename(file, '.js') + '.strip.js';
+  stripFile(file, stripFilename, extractedErrors)
+  .then(function () {
+    console.log(extractedErrors);
+  })
+  .done();
+});

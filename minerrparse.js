@@ -69,6 +69,8 @@ module.exports = function (props) {
 
   if (props) {
     logger = props.logger || { error: console.error };
+  } else {
+    logger = { error: console.error };
   }
 
   transformHandlers = {
@@ -87,6 +89,11 @@ module.exports = function (props) {
       if (isMinErrInstance(ast)) {
         copyAST.arguments = [].concat(ast.arguments[0], ast.arguments.slice(2));
         extractedErrors[ast.arguments[0].value] = ast.arguments[1].value;
+      } else {
+        copyAST.callee = transform(ast.callee, extractedErrors);
+        copyAST.arguments = ast.arguments.map(function (argument) {
+            return transform(argument, extractedErrors);
+          });
       }
       return copyAST;
     },
@@ -94,6 +101,7 @@ module.exports = function (props) {
 
   transform = function (ast, extractedErrors) {
     var copyAST, astReduce;
+
 
     if (transformHandlers[ast.type]) {
       return transformHandlers[ast.type](ast, extractedErrors);

@@ -193,4 +193,12 @@ describe('The MinErr parser', function () {
       return fooMinErr;
     });
   });
+
+  it('should extract minErr errors from nested call expressions', function () {
+    expect(function (testMinErr) {
+      (function (foo) {
+        testMinErr('nest', 'This {0} should be extracted', foo);
+      })('test');
+    }).toExtract({ 'nest': 'This {0} should be extracted' });
+  });
 });
