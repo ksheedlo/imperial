@@ -138,7 +138,7 @@ describe('The MinErr parser', function () {
     }});
   });
 
-  it('should extract multiple error messages', function () {
+  it('should extract multiple error messages from a single namespace', function () {
     expect(function(testMinErr, test) {
       testMinErr('test1', 'This is a {0}', test);
       minErr('test')('test2', 'The answer is {0}', 42);
@@ -146,6 +146,22 @@ describe('The MinErr parser', function () {
       test1: 'This is a {0}',
       test2: 'The answer is {0}'
     }});
+  });
+
+  it('should extract multiple error messages from multiple namespaces', function () {
+    expect(function (fooMinErr, barMinErr) {
+      fooMinErr('one', 'Too many {0}', 'hippies');
+      barMinErr('one', 'Not enough {0}', 'mojo');
+      fooMinErr('three', 'The answer is {0}', 42);
+    }).toExtract({
+      foo: {
+        one: 'Too many {0}',
+        three: 'The answer is {0}'
+      },
+      bar: {
+        one: 'Not enough {0}'
+      }
+    });
   });
 
   it('should warn when it finds an error that is not a MinErr', function () {
@@ -215,5 +231,25 @@ describe('The MinErr parser', function () {
     }).toExtract({ test: {
       test: 'This is a very long string.'
     }});
+  });
+
+  it('should throw an error if it finds a variable template string', function () {
+    var ast = toAST(function (foo) {
+        var testMinErr = minErr('test');
+        testMinErr('test', foo, 42);
+      });
+    expect(function () {
+        parse(ast);
+      }).toThrow();
+  });
+
+  it('should throw an error if it finds a variable error code', function () {
+    var ast = toAST(function (foo) {
+        var testMinErr = minErr('test');
+        testMinErr(foo, 'The answer is {0}', 42);
+      });
+    expect(function () {
+        parse(ast);
+      }).toThrow();
   });
 });
