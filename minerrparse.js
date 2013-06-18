@@ -4,10 +4,6 @@
 
 var escodegen = require('escodegen');
 
-//function deepCopy(obj) {
-//  return JSON.parse(JSON.stringify(obj));
-//}
-
 function isAST(obj) {
   return obj && typeof(obj) === 'object' && obj.type !== undefined;
 }
