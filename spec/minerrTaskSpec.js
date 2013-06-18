@@ -252,4 +252,22 @@ describe('The MinErr parser', function () {
         parse(ast);
       }).toThrow();
   });
+
+  it('should substitute the production minErr AST', function () {
+    var ast = esprima.parse(
+        ' function minErr(module) {' +
+        '   console.log("This should be ripped out.");' +
+        ' }'),
+      expectedCode = esprima.parse(
+        ' function minErr(module) {' +
+        '   return module + 42;' +
+        ' }'),
+      subAst = toAST(function minErr (module) {
+          return module + 42;
+        }).body[0].expression,
+      strip;
+
+    strip = minerr({ logger: logger, minErrAst: subAst });
+    expect(JSON.stringify(strip(ast))).toEqual(JSON.stringify(expectedCode));
+  });
 });

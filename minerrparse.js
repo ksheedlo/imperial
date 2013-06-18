@@ -91,16 +91,15 @@ function makeLogMessage(filename, loc, message) {
 module.exports = function (props) {
   var filename = '',
     logger,
+    minErrAst,
     transform,
     transformHandlers,
     updateErrors,
     updateErrorsInNamespace;
 
-  if (props) {
-    logger = props.logger || { error: console.error };
-  } else {
-    logger = { error: console.error };
-  }
+  props = props || {};
+  logger = props.logger || { error: console.error };
+  minErrAst = props.minErrAst;
 
   updateErrorsInNamespace = function (code, message, instance, namespacedErrors) {
     if (namespacedErrors[code]) {
@@ -147,6 +146,19 @@ module.exports = function (props) {
           });
       }
     },
+    FunctionDeclaration: function (ast, extractedErrors) {
+      if (ast.id && ast.id.type === 'Identifier' && ast.id.name === 'minErr') {
+        if (minErrAst) {
+          ast.params = minErrAst.params;
+          ast.body = minErrAst.body;
+        }
+      } else {
+        ast.params.forEach(function (ast) {
+            transform(ast, extractedErrors);
+          });
+        transform(ast.body, extractedErrors);
+      }
+    }
   };
 
   transform = function (ast, extractedErrors) {
