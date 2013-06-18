@@ -4,9 +4,9 @@
 
 var escodegen = require('escodegen');
 
-function deepCopy(obj) {
-  return JSON.parse(JSON.stringify(obj));
-}
+//function deepCopy(obj) {
+//  return JSON.parse(JSON.stringify(obj));
+//}
 
 function isAST(obj) {
   return obj && typeof(obj) === 'object' && obj.type !== undefined;
@@ -133,60 +133,49 @@ module.exports = function (props) {
 
   transformHandlers = {
     ThrowStatement: function (ast, extractedErrors) {
-      var copyAST = deepCopy(ast);
       if (isMinErrInstance(ast.argument)) {
-        copyAST.argument = transform(ast.argument, extractedErrors);
+        transform(ast.argument, extractedErrors);
       } else {
         logger.error(makeLogMessage(filename, ast.loc, 'Error is not a minErr instance'));
       }
-      return copyAST;
     },
     CallExpression: function (ast, extractedErrors) {
       // If this is a MinErr instance, delete the template string.
-      var copyAST = deepCopy(ast);
       if (isMinErrInstance(ast)) {
-        copyAST.arguments = [].concat(ast.arguments[0], ast.arguments.slice(2));
         updateErrors(ast, extractedErrors);
+        ast.arguments.splice(1, 1);
       } else {
-        copyAST.callee = transform(ast.callee, extractedErrors);
-        copyAST.arguments = ast.arguments.map(function (argument) {
-            return transform(argument, extractedErrors);
+        transform(ast.callee, extractedErrors);
+        ast.arguments.forEach(function (argument) {
+            transform(argument, extractedErrors);
           });
       }
-      return copyAST;
     },
   };
 
   transform = function (ast, extractedErrors) {
-    var copyAST, astReduce;
-
-
-    if (transformHandlers[ast.type]) {
-      return transformHandlers[ast.type](ast, extractedErrors);
-    }
-    copyAST = deepCopy(ast);
-
-    astReduce = function (iAstArray, ast) {
-      var nextAst = transform(ast, extractedErrors);
-      return iAstArray.concat(nextAst);
+    var transformWithErrors = function (ast) {
+      transform(ast, extractedErrors);
     };
 
+    if (transformHandlers[ast.type]) {
+      transformHandlers[ast.type](ast, extractedErrors);
+      return;
+    }
     for (var property in ast) {
       if (isAST(ast[property])) {
-        copyAST[property] = transform(ast[property], extractedErrors);
+        transformWithErrors(ast[property]);
       }
       if (isASTArray(ast[property])) {
-        copyAST[property] = ast[property].reduce(astReduce, []);
+        ast[property].forEach(transformWithErrors);
       }
     }
-    return copyAST;
   };
 
   return function (ast, errors, sourceFilename) {
-    var result;
     filename = sourceFilename || '';
-    result = transform(ast, errors);
+    transform(ast, errors);
     filename = '';
-    return result;
+    return ast;
   };
 };
