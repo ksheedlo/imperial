@@ -2,6 +2,8 @@
 
 /*global toString*/
 
+var escodegen = require('escodegen');
+
 function deepCopy(obj) {
   return JSON.parse(JSON.stringify(obj));
 }
@@ -39,13 +41,42 @@ function isMinErrInstance(ast) {
   if (ast.type !== 'CallExpression') {
     return false;
   }
-  if (ast.callee.type === 'Identifier' && ast.callee.name.match(/^.+MinErr$/)) {
+  if (ast.callee.type === 'Identifier' && ast.callee.name.match(/^\S+MinErr$/)) {
     return true;
   }
   if (isMinErrCall(ast.callee)) {
     return true;
   }
   return false;
+}
+
+function toCode(ast) {
+  return escodegen.generate(ast, {
+      format: {
+        indent: {
+          style: '  ',
+          base: 0,
+        }
+      }
+    });
+}
+
+function getString(ast) {
+  if (ast.type === 'Literal') {
+    return ast.value;
+  } else if (ast.type === 'BinaryExpression' && ast.operator === '+') {
+    return getString(ast.left) + getString(ast.right);
+  }
+  throw new Error('Can\'t determine static value of expression: ' + toCode(ast));
+}
+
+function getNamespace(instance) {
+  if (instance.callee.type === 'Identifier') {
+    return instance.callee.name.match(/^(\S+)MinErr$/)[1];
+  } else if (instance.callee.arguments) {
+    return getString(instance.callee.arguments[0]);
+  }
+  return undefined;
 }
 
 function makeLogMessage(filename, loc, message) {
@@ -65,13 +96,40 @@ module.exports = function (props) {
   var filename = '',
     logger,
     transform,
-    transformHandlers;
+    transformHandlers,
+    updateErrors,
+    updateErrorsInNamespace;
 
   if (props) {
     logger = props.logger || { error: console.error };
   } else {
     logger = { error: console.error };
   }
+
+  updateErrorsInNamespace = function (code, message, instance, namespacedErrors) {
+    if (namespacedErrors[code]) {
+      if (namespacedErrors[code] !== message) {
+        logger.error(makeLogMessage(filename, instance.loc,
+          'Errors with the same code have different messages'));
+      }
+    } else {
+      namespacedErrors[code] = message;
+    }
+  };
+
+  updateErrors = function (instance, extractedErrors) {
+    var code = getString(instance.arguments[0]),
+      message = getString(instance.arguments[1]),
+      namespace = getNamespace(instance);
+  
+    if (namespace === undefined) {
+      updateErrorsInNamespace(code, message, instance, extractedErrors);
+    }
+    if (!extractedErrors[namespace]) {
+      extractedErrors[namespace] = {};
+    }
+    updateErrorsInNamespace(code, message, instance, extractedErrors[namespace]);
+  };
 
   transformHandlers = {
     ThrowStatement: function (ast, extractedErrors) {
@@ -88,7 +146,7 @@ module.exports = function (props) {
       var copyAST = deepCopy(ast);
       if (isMinErrInstance(ast)) {
         copyAST.arguments = [].concat(ast.arguments[0], ast.arguments.slice(2));
-        extractedErrors[ast.arguments[0].value] = ast.arguments[1].value;
+        updateErrors(ast, extractedErrors);
       } else {
         copyAST.callee = transform(ast.callee, extractedErrors);
         copyAST.arguments = ast.arguments.map(function (argument) {

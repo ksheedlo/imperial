@@ -133,14 +133,19 @@ describe('The MinErr parser', function () {
   it('should extract error info', function () {
     expect(function(testMinErr, test) {
       testMinErr('test1', 'This is a {0}', test);
-    }).toExtract({ 'test1': 'This is a {0}' });
+    }).toExtract({ test: {
+      test1: 'This is a {0}'
+    }});
   });
 
   it('should extract multiple error messages', function () {
     expect(function(testMinErr, test) {
       testMinErr('test1', 'This is a {0}', test);
       minErr('test')('test2', 'The answer is {0}', 42);
-    }).toExtract({ 'test1': 'This is a {0}', 'test2': 'The answer is {0}' });
+    }).toExtract({ test: {
+      test1: 'This is a {0}',
+      test2: 'The answer is {0}'
+    }});
   });
 
   it('should warn when it finds an error that is not a MinErr', function () {
@@ -199,6 +204,16 @@ describe('The MinErr parser', function () {
       (function (foo) {
         testMinErr('nest', 'This {0} should be extracted', foo);
       })('test');
-    }).toExtract({ 'nest': 'This {0} should be extracted' });
+    }).toExtract({ test: {
+      nest: 'This {0} should be extracted'
+    }});
+  });
+
+  it('should handle concatenated error message strings', function () {
+    expect(function (testMinErr) {
+      testMinErr('test', 'This is' + ' a very long ' + 'string.');
+    }).toExtract({ test: {
+      test: 'This is a very long string.'
+    }});
   });
 });
