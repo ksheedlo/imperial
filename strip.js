@@ -4,9 +4,11 @@ var argv = require('optimist').argv;
 var esprima = require('esprima');
 var escodegen = require('escodegen');
 var fs = require('fs');
-var strip = require('./minerrparse.js')();
+var stripper = require('./minerrparse.js');
 var path = require('path');
 var Q = require('q');
+
+var strip = stripper({ minErrAst: esprima.parse(fs.readFileSync('minerrMin.js')).body[0] });
 
 function stripFile(filename, output, extractedErrors) {
   return Q.nfcall(fs.readFile, filename)

@@ -270,4 +270,24 @@ describe('The MinErr parser', function () {
     strip = minerr({ logger: logger, minErrAst: subAst });
     expect(JSON.stringify(strip(ast))).toEqual(JSON.stringify(expectedCode));
   });
+
+  it('should preserve regular expressions when substituting a minErr AST', function () {
+    // This DOES NOT work for regular expression literals.
+    // Use the RegExp constructor when creating regexes in minErr implementations.
+    var ast = esprima.parse(
+        ' function minErr(module) {' +
+        '   console.log("This should be ripped out.");' +
+        ' }'),
+      expectedCode = esprima.parse(
+        ' function minErr(module) {' +
+        '   return new RegExp(module + "\\\\d+");' +
+        ' }'),
+      subAst = toAST(function minErr(module) {
+          return new RegExp(module + '\\d+');
+        }).body[0].expression,
+      strip;
+
+    strip = minerr({ logger: logger, minErrAst: subAst });
+    expect(JSON.stringify(strip(ast))).toEqual(JSON.stringify(expectedCode));
+  });
 });
